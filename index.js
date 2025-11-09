@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const { authenticateToken } = require("./middleware");
+
 const express = require("express");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
@@ -60,20 +62,7 @@ app.post("/api/register", async (req, res) => {
     }
 });
 
-app.get("/", (req, res) => {
-    res.send("Hello World!");
-});
-
-app.get("/test-db", async (req, res) => {
-    try {
-        const result = await pool.query("SELECT NOW()");
-        res.json({ message: "Database connected!", time: result.rows[0] });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get("/api/posts", async (req, res) => {
+app.get("/api/posts", authenticateToken, async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM posts");
         res.json({
@@ -85,7 +74,7 @@ app.get("/api/posts", async (req, res) => {
     }
 });
 
-app.get("/api/posts/:id", async (req, res) => {
+app.get("/api/posts/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query("SELECT * FROM posts WHERE id = $1", [
@@ -117,7 +106,7 @@ app.put("/api/posts/:id", async (req, res) => {
     }
 });
 
-app.delete("/api/posts/:id", async (req, res) => {
+app.delete("/api/posts/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(
@@ -133,7 +122,7 @@ app.delete("/api/posts/:id", async (req, res) => {
     }
 });
 
-app.post("/api/posts", async (req, res) => {
+app.post("/api/posts", authenticateToken, async (req, res) => {
     try {
         const { title, content } = req.body;
         if (!title || !content) {
