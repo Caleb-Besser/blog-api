@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "An api used to post blog posts, and comments on them.",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.1.0",
     "pg": "^8.16.3"
   }

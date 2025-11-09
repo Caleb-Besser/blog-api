@@ -1,4 +1,6 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const pool = require("./db");
 
@@ -7,6 +9,20 @@ const app = express();
 app.use(express.json());
 
 const port = 3000;
+
+app.post("/api/register", async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const result = await pool.query(
+            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at",
+            [username, email, hashedPassword]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
