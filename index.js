@@ -16,45 +16,18 @@ const port = 3000;
 
 const jwt = require("jsonwebtoken");
 
-app.post("/api/login", async (req, res) => {
+// Comments API
+app.post("/api/comments", authenticateToken, async (req, res) => {
     try {
-        const { email, password } = req.body;
-        const result = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
-            [email]
-        );
-        if (result.rows.length === 0) {
-            return res.status(401).json({ error: "Invalid credentials" });
+        const { content, post_id, user_id } = req.body;
+        if (!content || !post_id || !user_id) {
+            res.status(500).json({ error: "Wrong comment request body" });
         }
+        console.log(content, post_id, user_id);
 
-        const user = result.rows[0];
-
-        const validPassword = await bcrypt.compare(password, user.password);
-
-        if (!validPassword) {
-            return res.status(401).json({ error: "Invalid credentials" });
-        }
-
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-            expiresIn: "24h",
-        });
-
-        res.json({
-            token,
-            user: { id: user.id, username: user.username, email: user.email },
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post("/api/register", async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
         const result = await pool.query(
-            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at",
-            [username, email, hashedPassword]
+            "INSERT INTO comments (content, user_id, post_id) VALUES ($1, $2, $3) RETURNING *",
+            [content, user_id, post_id]
         );
         res.json(result.rows[0]);
     } catch (err) {
@@ -62,6 +35,56 @@ app.post("/api/register", async (req, res) => {
     }
 });
 
+app.delete("/api/comments/:id", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const comment = await pool.query(
+            "SELECT * FROM comments WHERE id = $1",
+            [id]
+        );
+        if (comment.rows[0].user_id === req.user.userId) {
+            const result = await pool.query(
+                "DELETE FROM comments WHERE id = $1 RETURNING *",
+                [id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: "Comment not found." });
+            }
+            res.json({ message: "Deleted comment.", comment: result.rows[0] });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put("/api/comments/:id", authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content } = req.body;
+
+        const comment = await pool.query(
+            "SELECT * FROM comments WHERE id = $1",
+            [id]
+        );
+
+        console.log(comment);
+
+        if (comment.rows[0].user_id === req.user.userId) {
+            const result = await pool.query(
+                "UPDATE comments SET content = $1 WHERE id = $2 RETURNING *",
+                [content, id]
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: "Comment not found!" });
+            }
+            res.json(result.rows[0]);
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Posts API
 app.get("/api/posts", authenticateToken, async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM posts");
@@ -131,6 +154,53 @@ app.post("/api/posts", authenticateToken, async (req, res) => {
         const result = await pool.query(
             "INSERT INTO posts (title, content) VALUES ($1, $2) RETURNING *",
             [title, content]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// Users API
+
+app.post("/api/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const result = await pool.query(
+            "SELECT * FROM users WHERE email = $1",
+            [email]
+        );
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: "Invalid credentials" });
+        }
+
+        const user = result.rows[0];
+
+        const validPassword = await bcrypt.compare(password, user.password);
+
+        if (!validPassword) {
+            return res.status(401).json({ error: "Invalid credentials" });
+        }
+
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+            expiresIn: "24h",
+        });
+
+        res.json({
+            token,
+            user: { id: user.id, username: user.username, email: user.email },
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/register", async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const result = await pool.query(
+            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at",
+            [username, email, hashedPassword]
         );
         res.json(result.rows[0]);
     } catch (err) {
