@@ -1,236 +1,31 @@
 require("dotenv").config();
 
-const { authenticateToken } = require("./middleware");
+const { authenticateToken } = require("./middleware/auth");
 
 const express = require("express");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
-const pool = require("./db");
+const pool = require("./config/db");
 
 const app = express();
-
-app.use(express.json());
 
 const port = 3000;
 
 const jwt = require("jsonwebtoken");
+const postRoutes = require("./routes/postRoutes");
+const authRoutes = require("./routes/authRoutes");
+const commentRoutes = require("./routes/commentRoutes");
 
+app.use(express.json());
+app.use("/api/posts", postRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/comments", commentRoutes);
 // Comments API
-app.post("/api/comments", authenticateToken, async (req, res) => {
-    try {
-        const { content, post_id } = req.body;
-        if (!content || !post_id) {
-            res.status(400).json({ error: "Content or Post_Id not given." });
-        }
-
-        const result = await pool.query(
-            "INSERT INTO comments (content, user_id, post_id) VALUES ($1, $2, $3) RETURNING *",
-            [content, req.user.userId, post_id]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.delete("/api/comments/:id", authenticateToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const comment = await pool.query(
-            "SELECT * FROM comments WHERE id = $1",
-            [id]
-        );
-        if (comment.rows.length === 0) {
-            return res.status(404).json({ error: "Comment not found." });
-        }
-        if (comment.rows[0].user_id === req.user.userId) {
-            const result = await pool.query(
-                "DELETE FROM comments WHERE id = $1 RETURNING *",
-                [id]
-            );
-            if (result.rows.length === 0) {
-                return res.status(404).json({ error: "Comment not found." });
-            }
-            res.json({ message: "Deleted comment.", comment: result.rows[0] });
-        } else {
-            res.status(403).json({ error: "Not Authorized." });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.put("/api/comments/:id", authenticateToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { content } = req.body;
-
-        const comment = await pool.query(
-            "SELECT * FROM comments WHERE id = $1",
-            [id]
-        );
-
-        if (comment.rows.length === 0) {
-            return res.status(404).json({ error: "Comment not found." });
-        }
-
-        if (comment.rows[0].user_id === req.user.userId) {
-            const result = await pool.query(
-                "UPDATE comments SET content = $1 WHERE id = $2 RETURNING *",
-                [content, id]
-            );
-            if (result.rows.length === 0) {
-                return res.status(404).json({ error: "Comment not found!" });
-            }
-            res.json(result.rows[0]);
-        } else {
-            res.status(403).json({ error: "Not Authorized." });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 // Posts API
-app.get("/api/posts/:id/comments", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query(
-            "SELECT * FROM comments WHERE post_id = $1",
-            [id]
-        );
-        if (result.rows.length === 0) {
-            res.status(404).json({ error: "No comments found on that post." });
-        }
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
-app.get("/api/posts", async (req, res) => {
-    try {
-        const result = await pool.query("SELECT * FROM posts");
-        res.json({
-            message: "Fetched all posts from database",
-            posts: result.rows,
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get("/api/posts/:id", authenticateToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query("SELECT * FROM posts WHERE id = $1", [
-            id,
-        ]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "Post not found!" });
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.put("/api/posts/:id", authenticateToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { title, content } = req.body;
-        const result = await pool.query(
-            "UPDATE posts SET title = $1, content = $2 WHERE id = $3 RETURNING *",
-            [title, content, id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "Post not found!" });
-        }
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.delete("/api/posts/:id", authenticateToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await pool.query(
-            "DELETE FROM posts WHERE id = $1 RETURNING *",
-            [id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "Post not found!" });
-        }
-        res.json({ message: "Post deleted", post: result.rows[0] });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post("/api/posts", authenticateToken, async (req, res) => {
-    try {
-        const { title, content } = req.body;
-        if (!title || !content) {
-            res.status(500).json({ error: "wrong post body" });
-        }
-        const result = await pool.query(
-            "INSERT INTO posts (title, content) VALUES ($1, $2) RETURNING *",
-            [title, content]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 // Users API
-
-app.post("/api/login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const result = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
-            [email]
-        );
-        if (result.rows.length === 0) {
-            return res.status(401).json({ error: "Invalid credentials" });
-        }
-
-        const user = result.rows[0];
-
-        const validPassword = await bcrypt.compare(password, user.password);
-
-        if (!validPassword) {
-            return res.status(401).json({ error: "Invalid credentials" });
-        }
-
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-            expiresIn: "24h",
-        });
-
-        res.json({
-            token,
-            user: { id: user.id, username: user.username, email: user.email },
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post("/api/register", async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-        const result = await pool.query(
-            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at",
-            [username, email, hashedPassword]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);

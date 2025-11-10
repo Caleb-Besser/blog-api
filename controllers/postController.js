@@ -1,0 +1,93 @@
+const pool = require("../config/db");
+
+exports.getPostComments = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            "SELECT * FROM comments WHERE post_id = $1",
+            [id]
+        );
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: "No comments found on that post." });
+        }
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getAllPosts = async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM posts");
+        res.json({
+            message: "Fetched all posts from database",
+            posts: result.rows,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getPost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query("SELECT * FROM posts WHERE id = $1", [
+            id,
+        ]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Post not found!" });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.updatePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, content } = req.body;
+        const result = await pool.query(
+            "UPDATE posts SET title = $1, content = $2 WHERE id = $3 RETURNING *",
+            [title, content, id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Post not found!" });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.deletePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            "DELETE FROM posts WHERE id = $1 RETURNING *",
+            [id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Post not found!" });
+        }
+        res.json({ message: "Post deleted", post: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.addPost = async (req, res) => {
+    try {
+        const { title, content } = req.body;
+        if (!title || !content) {
+            res.status(500).json({ error: "wrong post body" });
+        }
+        const result = await pool.query(
+            "INSERT INTO posts (title, content) VALUES ($1, $2) RETURNING *",
+            [title, content]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
