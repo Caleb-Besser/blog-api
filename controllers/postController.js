@@ -2,17 +2,21 @@ const pool = require("../config/db");
 
 exports.getPostComments = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
         const { id } = req.params;
         const result = await pool.query(
-            "SELECT * FROM comments WHERE post_id = $1",
-            [id]
+            "SELECT * FROM comments WHERE post_id = $1 LIMIT $2 OFFSET $3",
+            [id, limit, offset]
         );
         if (result.rows.length === 0) {
             return res
                 .status(404)
                 .json({ error: "No comments found on that post." });
         }
-        res.json(result.rows);
+        res.json({ comments: result.rows, page, limit });
     } catch (err) {
         return res.status(500).json({ error: err.message });
     }
@@ -20,12 +24,19 @@ exports.getPostComments = async (req, res) => {
 
 exports.getAllPosts = async (req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM posts");
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const result = await pool.query(
+            "SELECT * FROM posts ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            [limit, offset]
+        );
         res.json({
             message: "Fetched all posts from database",
             posts: result.rows,
         });
     } catch (err) {
+        console.log(err);
         return res.status(500).json({ error: err.message });
     }
 };
@@ -40,6 +51,22 @@ exports.getPost = async (req, res) => {
             return res.status(404).json({ error: "Post not found!" });
         }
         res.json(result.rows[0]);
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+exports.searchPosts = async (req, res) => {
+    try {
+        const { q } = req.query;
+        const result = await pool.query(
+            "SELECT * FROM posts WHERE title ILIKE $1 OR content ILIKE $1",
+            [`%${q}%`]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Post not found!" });
+        }
+        res.json(result.rows);
     } catch (err) {
         return res.status(500).json({ error: err.message });
     }
