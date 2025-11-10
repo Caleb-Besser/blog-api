@@ -19,15 +19,14 @@ const jwt = require("jsonwebtoken");
 // Comments API
 app.post("/api/comments", authenticateToken, async (req, res) => {
     try {
-        const { content, post_id, user_id } = req.body;
-        if (!content || !post_id || !user_id) {
-            res.status(500).json({ error: "Wrong comment request body" });
+        const { content, post_id } = req.body;
+        if (!content || !post_id) {
+            res.status(400).json({ error: "Content or Post_Id not given." });
         }
-        console.log(content, post_id, user_id);
 
         const result = await pool.query(
             "INSERT INTO comments (content, user_id, post_id) VALUES ($1, $2, $3) RETURNING *",
-            [content, user_id, post_id]
+            [content, req.user.userId, post_id]
         );
         res.json(result.rows[0]);
     } catch (err) {
@@ -42,6 +41,9 @@ app.delete("/api/comments/:id", authenticateToken, async (req, res) => {
             "SELECT * FROM comments WHERE id = $1",
             [id]
         );
+        if (comment.rows.length === 0) {
+            return res.status(404).json({ error: "Comment not found." });
+        }
         if (comment.rows[0].user_id === req.user.userId) {
             const result = await pool.query(
                 "DELETE FROM comments WHERE id = $1 RETURNING *",
@@ -51,6 +53,8 @@ app.delete("/api/comments/:id", authenticateToken, async (req, res) => {
                 return res.status(404).json({ error: "Comment not found." });
             }
             res.json({ message: "Deleted comment.", comment: result.rows[0] });
+        } else {
+            res.status(403).json({ error: "Not Authorized." });
         }
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -67,7 +71,9 @@ app.put("/api/comments/:id", authenticateToken, async (req, res) => {
             [id]
         );
 
-        console.log(comment);
+        if (comment.rows.length === 0) {
+            return res.status(404).json({ error: "Comment not found." });
+        }
 
         if (comment.rows[0].user_id === req.user.userId) {
             const result = await pool.query(
@@ -78,6 +84,8 @@ app.put("/api/comments/:id", authenticateToken, async (req, res) => {
                 return res.status(404).json({ error: "Comment not found!" });
             }
             res.json(result.rows[0]);
+        } else {
+            res.status(403).json({ error: "Not Authorized." });
         }
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -85,7 +93,23 @@ app.put("/api/comments/:id", authenticateToken, async (req, res) => {
 });
 
 // Posts API
-app.get("/api/posts", authenticateToken, async (req, res) => {
+app.get("/api/posts/:id/comments", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            "SELECT * FROM comments WHERE post_id = $1",
+            [id]
+        );
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: "No comments found on that post." });
+        }
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/api/posts", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM posts");
         res.json({
@@ -112,7 +136,7 @@ app.get("/api/posts/:id", authenticateToken, async (req, res) => {
     }
 });
 
-app.put("/api/posts/:id", async (req, res) => {
+app.put("/api/posts/:id", authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { title, content } = req.body;
