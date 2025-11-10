@@ -8,11 +8,13 @@ exports.getPostComments = async (req, res) => {
             [id]
         );
         if (result.rows.length === 0) {
-            res.status(404).json({ error: "No comments found on that post." });
+            return res
+                .status(404)
+                .json({ error: "No comments found on that post." });
         }
         res.json(result.rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -24,7 +26,7 @@ exports.getAllPosts = async (req, res) => {
             posts: result.rows,
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -39,7 +41,7 @@ exports.getPost = async (req, res) => {
         }
         res.json(result.rows[0]);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -56,7 +58,7 @@ exports.updatePost = async (req, res) => {
         }
         res.json(result.rows[0]);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -72,7 +74,7 @@ exports.deletePost = async (req, res) => {
         }
         res.json({ message: "Post deleted", post: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -80,7 +82,9 @@ exports.addPost = async (req, res) => {
     try {
         const { title, content } = req.body;
         if (!title || !content) {
-            res.status(500).json({ error: "wrong post body" });
+            return res
+                .status(400)
+                .json({ error: "Post needs content and title." });
         }
         const result = await pool.query(
             "INSERT INTO posts (title, content) VALUES ($1, $2) RETURNING *",
@@ -88,6 +92,6 @@ exports.addPost = async (req, res) => {
         );
         res.json(result.rows[0]);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };

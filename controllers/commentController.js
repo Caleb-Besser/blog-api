@@ -13,7 +13,7 @@ exports.postComment = async (req, res) => {
         );
         res.json(result.rows[0]);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -37,10 +37,10 @@ exports.deleteComment = async (req, res) => {
             }
             res.json({ message: "Deleted comment.", comment: result.rows[0] });
         } else {
-            res.status(403).json({ error: "Not Authorized." });
+            return res.status(403).json({ error: "Not Authorized." });
         }
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -68,9 +68,9 @@ exports.editComment = async (req, res) => {
             }
             res.json(result.rows[0]);
         } else {
-            res.status(403).json({ error: "Not Authorized." });
+            return res.status(403).json({ error: "Not Authorized." });
         }
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };

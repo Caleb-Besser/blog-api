@@ -28,7 +28,7 @@ exports.login = async (req, res) => {
             user: { id: user.id, username: user.username, email: user.email },
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
 
@@ -42,6 +42,6 @@ exports.register = async (req, res) => {
         );
         res.json(result.rows[0]);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
