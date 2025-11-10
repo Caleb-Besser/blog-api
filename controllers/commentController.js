@@ -3,6 +3,12 @@ const pool = require("../config/db");
 exports.postComment = async (req, res) => {
     try {
         const { content, post_id } = req.body;
+        if (typeof content !== "string") {
+            return res.status(400).json({ error: "Comment content issue" });
+        }
+        if (typeof post_id !== "number") {
+            return res.status(400).json({ error: "Comment post_id issue" });
+        }
         if (!content || !post_id) {
             res.status(400).json({ error: "Content or Post_Id not given." });
         }
@@ -48,6 +54,10 @@ exports.editComment = async (req, res) => {
     try {
         const { id } = req.params;
         const { content } = req.body;
+
+        if (typeof content !== "string") {
+            return res.status(400).json({ error: "Comment content issue" });
+        }
 
         const comment = await pool.query(
             "SELECT * FROM comments WHERE id = $1",

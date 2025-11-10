@@ -76,6 +76,17 @@ exports.updatePost = async (req, res) => {
     try {
         const { id } = req.params;
         const { title, content } = req.body;
+
+        if (
+            typeof title !== "string" ||
+            title.length > 255 ||
+            title.trim().length === 0
+        ) {
+            return res.status(400).json({ error: "Post title issue" });
+        }
+        if (typeof content !== "string") {
+            return res.status(400).json({ error: "Post content issue" });
+        }
         const result = await pool.query(
             "UPDATE posts SET title = $1, content = $2 WHERE id = $3 RETURNING *",
             [title, content, id]
@@ -108,6 +119,16 @@ exports.deletePost = async (req, res) => {
 exports.addPost = async (req, res) => {
     try {
         const { title, content } = req.body;
+        if (
+            typeof title !== "string" ||
+            title.length > 255 ||
+            title.trim().length === 0
+        ) {
+            return res.status(400).json({ error: "Post title issue" });
+        }
+        if (typeof content !== "string") {
+            return res.status(400).json({ error: "Post content issue" });
+        }
         if (!title || !content) {
             return res
                 .status(400)

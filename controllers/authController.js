@@ -1,4 +1,7 @@
 const pool = require("../config/db");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+const jwt = require("jsonwebtoken");
 
 exports.login = async (req, res) => {
     try {
